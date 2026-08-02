@@ -2,6 +2,7 @@ import requests
 from typing import List
 from app.collectors.base_collector import BaseCollector
 from app.models.job import Job
+from app.utils.job_filter import JobFilter
 from app.utils.logger import logger
 
 
@@ -10,7 +11,7 @@ class RemotiveCollector(BaseCollector):
     Collector for Remotive job board API (https://remotive.com/api/remote-jobs).
     """
 
-    API_URL = "https://remotive.com/api/remote-jobs?category=software-dev"
+    API_URL = "https://remotive.com/api/remote-jobs?search=mobile"
     MOBILE_KEYWORDS = {
         "mobile", "android", "ios", "flutter", "kotlin", "swift",
         "kmp", "react native", "react-native", "dart", "swiftui"
@@ -42,12 +43,9 @@ class RemotiveCollector(BaseCollector):
                 title = str(item.get("title", "")).strip()
                 company = str(item.get("company_name", "")).strip()
                 tags = [str(t).lower() for t in item.get("tags", [])]
-                description = str(item.get("description", "")).lower()
 
-                # Check if job title or tags relate specifically to mobile development
-                title_and_tags = f"{title} {' '.join(tags)}".lower()
-                is_mobile_job = any(keyword in title_and_tags for keyword in self.MOBILE_KEYWORDS)
-                if not is_mobile_job:
+                # Check strict mobile developer role relevance
+                if not JobFilter.is_strictly_mobile_job(title, tags):
                     continue
 
                 url = item.get("url") or f"https://remotive.com/remote-jobs/{item.get('id')}"

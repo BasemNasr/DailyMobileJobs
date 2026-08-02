@@ -37,7 +37,8 @@ class TelegramService:
             "chat_id": self.channel,
             "text": formatted_message,
             "parse_mode": "HTML",
-            "disable_web_page_preview": False,
+            "disable_web_page_preview": True,
+            "link_preview_options": {"is_disabled": True},
         }
 
         try:

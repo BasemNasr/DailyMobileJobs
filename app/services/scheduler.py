@@ -12,6 +12,7 @@ from app.models.job import Job
 from app.services.duplicate_service import duplicate_service
 from app.services.telegram_service import telegram_service
 from app.utils.config import settings
+from app.utils.job_filter import JobFilter
 from app.utils.logger import logger
 
 
@@ -55,8 +56,12 @@ class JobScheduler:
 
         logger.info(f"Total raw jobs collected across all collectors: {len(all_collected_jobs)}")
 
+        # Step 2.5: Filter by strict mobile relevance & location criteria
+        relevant_jobs = [job for job in all_collected_jobs if JobFilter.filter_job(job)]
+        logger.info(f"Filtered {len(relevant_jobs)} mobile & location matching jobs out of {len(all_collected_jobs)} total raw jobs.")
+
         # Step 3: Remove duplicates
-        unique_jobs = duplicate_service.filter_duplicates(all_collected_jobs)
+        unique_jobs = duplicate_service.filter_duplicates(relevant_jobs)
 
         # Step 4: Save new jobs into SQLite
         inserted_count = 0

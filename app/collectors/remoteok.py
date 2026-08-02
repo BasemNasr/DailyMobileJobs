@@ -2,6 +2,7 @@ import requests
 from typing import List
 from app.collectors.base_collector import BaseCollector
 from app.models.job import Job
+from app.utils.job_filter import JobFilter
 from app.utils.logger import logger
 
 
@@ -10,7 +11,7 @@ class RemoteOKCollector(BaseCollector):
     Collector for RemoteOK job board API (https://remoteok.com/api).
     """
 
-    API_URL = "https://remoteok.com/api"
+    API_URL = "https://remoteok.com/api?tag=mobile"
     MOBILE_KEYWORDS = {
         "mobile", "android", "ios", "flutter", "kotlin", "swift",
         "kmp", "react native", "react-native", "dart", "swiftui"
@@ -47,12 +48,9 @@ class RemoteOKCollector(BaseCollector):
                 title = item.get("position", "").strip()
                 company = item.get("company", "").strip()
                 tags = [str(t).lower() for t in item.get("tags", [])]
-                description = str(item.get("description", "")).lower()
 
-                # Check if job title or tags relate specifically to mobile development
-                title_and_tags = f"{title} {' '.join(tags)}".lower()
-                is_mobile_job = any(keyword in title_and_tags for keyword in self.MOBILE_KEYWORDS)
-                if not is_mobile_job:
+                # Check strict mobile developer role relevance
+                if not JobFilter.is_strictly_mobile_job(title, tags):
                     continue
 
                 url = item.get("url") or item.get("apply_url") or f"https://remoteok.com/job/{item.get('id')}"

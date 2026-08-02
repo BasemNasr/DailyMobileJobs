@@ -18,6 +18,7 @@ class Config(BaseSettings):
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "jobs.db")
     FETCH_INTERVAL_MINUTES: int = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOCATION_FILTER: str = os.getenv("LOCATION_FILTER", "GLOBAL,MENA,EGYPT")
 
     model_config = SettingsConfigDict(
         env_file=str(env_path),
