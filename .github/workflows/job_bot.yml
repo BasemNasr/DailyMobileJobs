@@ -1,0 +1,49 @@
+name: Mobile Dev Jobs Bot Collector
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore SQLite Database Cache
+        uses: actions/cache@v4
+        with:
+          path: jobs.db
+          key: jobs-db-${{ github.run_id }}
+          restore-keys: |
+            jobs-db-
+
+      - name: Run Job Collector & Publisher
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL: ${{ secrets.CHANNEL }}
+          DATABASE_PATH: 'jobs.db'
+          LOG_LEVEL: 'INFO'
+        run: |
+          python main.py --run-once
+
+      - name: Save SQLite Database Cache
+        uses: actions/cache@v4
+        with:
+          path: jobs.db
+          key: jobs-db-${{ github.run_id }}
