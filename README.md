@@ -14,6 +14,8 @@ mobile-dev-jobs-bot/
 │   │   ├── base_collector.py     # Base abstract collector interface
 │   │   ├── remoteok.py           # RemoteOK API collector
 │   │   ├── remotive.py           # Remotive API collector
+│   │   ├── linkedin.py           # LinkedIn Guest API collector
+│   │   ├── glassdoor.py          # Glassdoor structured JSON-LD collector
 │   │   ├── company_sites.py      # Company careers collector registry
 │   │   └── __init__.py
 │   │
