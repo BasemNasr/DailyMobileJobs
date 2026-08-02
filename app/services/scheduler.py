@@ -6,6 +6,8 @@ from app.collectors import (
     RemoteOKCollector,
     RemotiveCollector,
     CompanySitesCollector,
+    LinkedInCollector,
+    GlassdoorCollector,
 )
 from app.database.db import db_service
 from app.models.job import Job
@@ -27,6 +29,8 @@ class JobScheduler:
         self.collectors: List[BaseCollector] = [
             RemoteOKCollector(),
             RemotiveCollector(),
+            LinkedInCollector(),
+            GlassdoorCollector(),
             CompanySitesCollector(),
         ]
 
