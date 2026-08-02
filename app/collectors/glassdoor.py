@@ -1,4 +1,4 @@
-import json
+import re
 import requests
 from bs4 import BeautifulSoup
 from typing import List
@@ -11,7 +11,8 @@ from app.utils.logger import logger
 
 class GlassdoorCollector(BaseCollector):
     """
-    Collector for Glassdoor job postings via structured JSON-LD data extraction.
+    Collector for Glassdoor job postings via HTML parsing & structured card extraction.
+    Extracts real job titles, companies, actual city/country locations, and direct application links.
     """
 
     BASE_URL = "https://www.glassdoor.com/Job/jobs.htm"
@@ -23,7 +24,7 @@ class GlassdoorCollector(BaseCollector):
 
     def fetch_jobs(self) -> List[Job]:
         """
-        Fetch jobs from Glassdoor, extract structured JSON-LD job items, and normalize into Job objects.
+        Fetch jobs from Glassdoor, extract exact title, company, true location, and application URL.
         """
         logger.info(f"[{self.source_name}] Starting job collection...")
         jobs: List[Job] = []
@@ -33,6 +34,8 @@ class GlassdoorCollector(BaseCollector):
             "Accept-Language": "en-US,en;q=0.9",
         }
 
+        seen_urls = set()
+
         for keyword in self.KEYWORDS:
             url = f"{self.BASE_URL}?sc.keyword={quote_plus(keyword)}"
             try:
@@ -41,68 +44,53 @@ class GlassdoorCollector(BaseCollector):
                     continue
 
                 soup = BeautifulSoup(response.text, "html.parser")
-                scripts = soup.find_all("script", type="application/ld+json")
+                cards = soup.find_all(
+                    lambda tag: tag.get("class") and any("JobCard_jobCardWrapper" in c or "jobCard" in c for c in tag.get("class"))
+                )
 
-                for script in scripts:
-                    try:
-                        data = json.loads(script.string or "{}")
-                        if not isinstance(data, dict) or "itemListElement" not in data:
-                            continue
+                for card in cards:
+                    title_elem = card.find(lambda t: t.get("class") and any("jobTitle" in c for c in t.get("class")))
+                    company_elem = card.find(lambda t: t.get("class") and any("employerName" in c or "company" in c for c in t.get("class")))
+                    loc_elem = card.find(lambda t: t.get("class") and any("location" in c.lower() for c in t.get("class")))
+                    link_elem = card.find("a", href=True)
 
-                        items = data.get("itemListElement", [])
-                        for item in items:
-                            if not isinstance(item, dict) or "name" not in item or "url" not in item:
-                                continue
-
-                            title = item.get("name", "").strip()
-                            raw_url = item.get("url", "")
-
-                            if not raw_link_valid(raw_url):
-                                continue
-
-                            # Try extracting company name from URL structure (e.g. /job-listing/title-company-JV_...)
-                            company = extract_company_from_glassdoor_url(raw_url) or "Glassdoor Partner"
-
-                            if not JobFilter.is_strictly_mobile_job(title):
-                                continue
-
-                            job = Job(
-                                title=title,
-                                company=company,
-                                location="Remote / Global",
-                                employment_type="Full-time",
-                                url=raw_url,
-                                source=self.source_name,
-                                posted_at="Recently"
-                            )
-                            jobs.append(job)
-
-                    except Exception as json_err:
-                        logger.debug(f"[{self.source_name}] JSON parsing error: {json_err}")
+                    if not title_elem or not link_elem:
                         continue
+
+                    title = title_elem.text.strip()
+                    raw_company = company_elem.text.strip() if company_elem else "Glassdoor Employer"
+                    # Strip trailing rating digits (e.g. 'Capgemini4.2' -> 'Capgemini')
+                    company = re.sub(r"\s*\d+(\.\d+)?$", "", raw_company).strip()
+
+                    location = loc_elem.text.strip() if loc_elem else "Remote / Worldwide"
+                    raw_link = link_elem["href"]
+
+                    if not raw_link.startswith("http"):
+                        raw_link = f"https://www.glassdoor.com{raw_link}"
+
+                    clean_url = raw_link.split("?")[0]
+                    if clean_url in seen_urls:
+                        continue
+                    seen_urls.add(clean_url)
+
+                    # Check strict mobile role relevance
+                    if not JobFilter.is_strictly_mobile_job(title):
+                        continue
+
+                    job = Job(
+                        title=title,
+                        company=company or "Glassdoor Employer",
+                        location=location,
+                        employment_type="Full-time",
+                        url=clean_url,
+                        source=self.source_name,
+                        posted_at="Recently"
+                    )
+                    jobs.append(job)
 
             except Exception as e:
                 logger.error(f"[{self.source_name}] Failed to fetch '{keyword}': {e}")
                 continue
 
-        logger.info(f"[{self.source_name}] Fetched and normalized {len(jobs)} mobile jobs.")
+        logger.info(f"[{self.source_name}] Fetched and normalized {len(jobs)} mobile jobs with true locations.")
         return jobs
-
-
-def raw_link_valid(url: str) -> bool:
-    return bool(url and url.startswith("http") and "glassdoor.com/job-listing/" in url)
-
-
-def extract_company_from_glassdoor_url(url: str) -> str:
-    """
-    Extract company slug from Glassdoor job listing URL.
-    e.g. 'https://www.glassdoor.com/job-listing/mobile-developer-senior-saic-JV_...' -> 'SAIC'
-    """
-    try:
-        path = url.split("glassdoor.com/job-listing/")[1].split("-JV_")[0]
-        parts = path.split("-")
-        if len(parts) >= 2:
-            return parts[-1].upper()
-    except Exception:
-        pass
-    return "Glassdoor Employer"
