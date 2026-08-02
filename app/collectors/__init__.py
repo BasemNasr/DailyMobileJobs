@@ -4,6 +4,8 @@ from app.collectors.remotive import RemotiveCollector
 from app.collectors.company_sites import CompanySitesCollector
 from app.collectors.linkedin import LinkedInCollector
 from app.collectors.glassdoor import GlassdoorCollector
+from app.collectors.wuzzuf import WuzzufCollector
+from app.collectors.indeed import IndeedCollector
 
 __all__ = [
     "BaseCollector",
@@ -12,4 +14,6 @@ __all__ = [
     "CompanySitesCollector",
     "LinkedInCollector",
     "GlassdoorCollector",
+    "WuzzufCollector",
+    "IndeedCollector",
 ]

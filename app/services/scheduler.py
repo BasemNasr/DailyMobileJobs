@@ -8,6 +8,8 @@ from app.collectors import (
     CompanySitesCollector,
     LinkedInCollector,
     GlassdoorCollector,
+    WuzzufCollector,
+    IndeedCollector,
 )
 from app.database.db import db_service
 from app.models.job import Job
@@ -31,6 +33,8 @@ class JobScheduler:
             RemotiveCollector(),
             LinkedInCollector(),
             GlassdoorCollector(),
+            WuzzufCollector(),
+            IndeedCollector(),
             CompanySitesCollector(),
         ]
 
